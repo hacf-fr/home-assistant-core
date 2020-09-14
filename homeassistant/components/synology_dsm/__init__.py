@@ -9,6 +9,7 @@ from synology_dsm.api.core.security import SynoCoreSecurity
 from synology_dsm.api.core.system import SynoCoreSystem
 from synology_dsm.api.core.upgrade import SynoCoreUpgrade
 from synology_dsm.api.core.utilization import SynoCoreUtilization
+from synology_dsm.api.download_station import SynoDownloadStation
 from synology_dsm.api.dsm.information import SynoDSMInformation
 from synology_dsm.api.dsm.network import SynoDSMNetwork
 from synology_dsm.api.storage.storage import SynoStorage
@@ -294,6 +295,8 @@ class SynoApi:
         self.system: SynoCoreSystem = None
         self.upgrade: SynoCoreUpgrade = None
         self.utilisation: SynoCoreUtilization = None
+        self.download_station: SynoDownloadStation = None
+        self.surveillance_station: SynoSurveillanceStation = None
 
         # Should we fetch them
         self._fetching_entities = {}
@@ -304,6 +307,9 @@ class SynoApi:
         self._with_system = True
         self._with_upgrade = True
         self._with_utilisation = True
+        self._with_information = True
+        self._with_download_station = True
+        self._with_surveillance_station = True
 
         self._unsub_dispatcher = None
 
@@ -326,8 +332,9 @@ class SynoApi:
         )
         await self._hass.async_add_executor_job(self.dsm.login)
 
-        self._with_surveillance_station = bool(
-            self.dsm.apis.get(SynoSurveillanceStation.CAMERA_API_KEY)
+        self._with_download_station = SynoDownloadStation.INFO_API_KEY in self.dsm.apis
+        self._with_surveillance_station = (
+            SynoSurveillanceStation.INFO_API_KEY in self.dsm.apis
         )
 
         self._async_setup_api_requests()
@@ -379,6 +386,9 @@ class SynoApi:
         self._with_information = bool(
             self._fetching_entities.get(SynoDSMInformation.API_KEY)
         )
+        self._with_download_station = bool(
+            self._fetching_entities.get(SynoDownloadStation.INFO_API_KEY)
+        )
         self._with_surveillance_station = bool(
             self._fetching_entities.get(SynoSurveillanceStation.CAMERA_API_KEY)
         ) or bool(
@@ -406,6 +416,10 @@ class SynoApi:
             self.dsm.reset(self.utilisation)
             self.utilisation = None
 
+        if not self._with_download_station:
+            self.dsm.reset(self.download_station)
+            self.download_station = None
+
         if not self._with_surveillance_station:
             self.dsm.reset(self.surveillance_station)
             self.surveillance_station = None
@@ -430,6 +444,9 @@ class SynoApi:
 
         if self._with_utilisation:
             self.utilisation = self.dsm.utilisation
+
+        if self._with_download_station:
+            self.download_station = self.dsm.download_station
 
         if self._with_surveillance_station:
             self.surveillance_station = self.dsm.surveillance_station
